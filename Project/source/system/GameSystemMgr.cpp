@@ -1,34 +1,93 @@
 #include "../../headers/system/GameSystemMgr.h"
-
+#include "../../output/offsets.hpp"
+#include "../../headers/core/ProcessUtil.h"
+#include "../../headers/utils/ConstsUtil.h"
+#include <iostream>
 namespace CS2Assist {
 
     GameSystemMgr::GameSystemMgr(HANDLE processHandle, HMODULE clientModule)
-        : hProcess(processHandle), ClientModuleAddress((uint64_t)clientModule) {
-        // 初始化代码，例如读取游戏系统相关偏移量
+        : hProcess(processHandle), ClientModuleAddress((uint64_t)clientModule){
     }
-
+    
     GameSystemMgr::~GameSystemMgr() {
-        // 清理代码
     }
 
-    float GameSystemMgr::GetSensitivity() const {
-        // 实现获取游戏灵敏度的逻辑
-        return 0.0f; // 示例返回值
+    bool GameSystemMgr::GetSensitivity(GameSystem& gameSystem) const {
+
+        uintptr_t pSensitivity{ 0 };
+        
+        if (
+            !ReadProcessMemory(
+                hProcess,
+                LPCVOID(ClientModuleAddress + cs2_dumper::offsets::client_dll::dwSensitivity),
+                &pSensitivity,
+                sizeof(pSensitivity),
+                nullptr)
+            ||
+            !pSensitivity
+            )
+        {
+            return false;
+        };
+
+        float sensitivityBuffer{ 1.0f };
+
+        if (
+            !ReadProcessMemory(
+                hProcess,
+                LPCVOID(pSensitivity + cs2_dumper::offsets::client_dll::dwSensitivity_sensitivity),
+                &sensitivityBuffer,
+                sizeof(sensitivityBuffer),
+                nullptr)
+            ||
+            sensitivityBuffer<0.09f
+            ||
+            sensitivityBuffer>8.1f
+            )
+        {
+            return false;
+        };
+
+        gameSystem.sensitivity = sensitivityBuffer;
+
+        return true;
     }
 
-    int GameSystemMgr::GetScreenWidth() const {
-        // 实现获取屏幕宽度的逻辑
-        return 0; // 示例返回值
-    }
+    // 实现获取地图名的逻辑
+    bool GameSystemMgr::GetMapName(GameSystem& gameSystem) const {
 
-    int GameSystemMgr::GetScreenHeight() const {
-        // 实现获取屏幕高度的逻辑
-        return 0; // 示例返回值
-    }
+        uintptr_t pstrMapStateInfo{ 0 };
 
-    GameState GameSystemMgr::GetGameState() const {
-        // 实现获取游戏状态的逻辑
-        return GameState::Unknown; // 示例返回值
+        char buffer[MAX_PATH]{ 0 };
+
+        if (
+            !ProcessUtil::ScanSignature(hProcess, (HMODULE)ClientModuleAddress, Consts::SignCode::strMapStateInfo, pstrMapStateInfo)
+            ||
+            !pstrMapStateInfo
+            ||
+            !ReadProcessMemory(
+                hProcess,
+                LPCVOID(pstrMapStateInfo + Consts::SignCode::strMapStateInfo_size),
+                &buffer,
+                sizeof(buffer) - 1,       //保证buffer最后一位是0
+                nullptr)
+            ||
+            !buffer
+            )
+        {
+            return false;
+        };
+
+        gameSystem.mapStateInfo = (std::string)buffer;
+
+        return true;
+    };
+
+    bool GameSystemMgr::GetGameState(GameSystem& gameSystem) const {
+
+        gameSystem.gameState = GameState::InGame;
+
+        return false;
     }
 
     std::pair<int, int> GameSystemMgr::GetScore() const {
@@ -36,28 +95,10 @@ namespace CS2Assist {
         return { 0, 0 }; // 示例返回值
     }
 
-    std::string GameSystemMgr::GetMapName() const {
-        // 实现获取地图名的逻辑
-        return ""; // 示例返回值
-    }
-
-    std::vector<SmokeEntity> GameSystemMgr::GetSmokeEntities() const {
-        // 实现获取烟雾弹列表的逻辑
-        return {}; // 示例返回值
-    }
-
-    std::vector<FlashEntity> GameSystemMgr::GetFlashEntities() const {
-        // 实现获取闪光弹列表的逻辑
-        return {}; // 示例返回值
-    }
-
-    std::vector<WeaponEntity> GameSystemMgr::GetWeaponEntities() const {
-        // 实现获取枪支列表的逻辑
-        return {}; // 示例返回值
-    }
-
-    void GameSystemMgr::Update() {
-        // 实现更新所有游戏系统数据的逻辑
+    void GameSystemMgr::Update(GameSystem& gameSystem) {
+        
+        GetSensitivity(gameSystem);
+        GetMapName(gameSystem);
     }
 
 } // namespace CS2Assist

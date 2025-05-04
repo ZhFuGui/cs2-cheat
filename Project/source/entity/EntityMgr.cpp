@@ -1,7 +1,7 @@
 #include "../../headers/entity/EntityMgr.h"
 #include "../../output/offsets.hpp"
 #include "../../output/client_dll.hpp"
-
+#include <iostream>
 //#include "../../headers\utils\MiscUtil.h"
 
 
@@ -40,45 +40,61 @@ namespace CS2Assist {
         return true;
     }
 
+    bool EntityMgr::GetBaseEntity(int index, uint64_t& controllerAddr, uint64_t& pawnAddr, uint64_t controllerBaseOverride) {
+        // 使用传入的 controllerBaseOverride，如果为 0，则使用默认的 controllerBase
+        uint64_t base = (controllerBaseOverride != 0) ? controllerBaseOverride : controllerBase;
+
+        // 读取 controllerAddr
+        controllerAddr = 0;
+        if (!ReadProcessMemory(hProcess, reinterpret_cast<LPVOID>(base + index * 0x78),
+            &controllerAddr, sizeof(controllerAddr), nullptr) || !controllerAddr) {
+            return false;
+        }
+
+        // 读取 playerPawnHandle
+        uint64_t playerPawnHandle = 0;
+        if (!ReadProcessMemory(hProcess, reinterpret_cast<LPVOID>(controllerAddr + cs2_dumper::schemas::client_dll::CCSPlayerController::m_hPlayerPawn),
+            &playerPawnHandle, sizeof(playerPawnHandle), nullptr) || !playerPawnHandle) {
+            return false;
+        }
+
+        // 读取 entry2
+        uint64_t entry2 = 0;
+        if (!ReadProcessMemory(hProcess, reinterpret_cast<LPVOID>(entityListBase + 0x8 * ((playerPawnHandle & 0x7FFF) >> 9) + 0x10),
+            &entry2, sizeof(entry2), nullptr) || !entry2) {
+            return false;
+        }
+
+        // 计算并读取 pawnAddr
+        uint64_t entityInstanceAddr = entry2 + 0x78 * (playerPawnHandle & 0x1FF);
+        pawnAddr = 0;
+        if (!ReadProcessMemory(hProcess, reinterpret_cast<LPVOID>(entityInstanceAddr),
+            &pawnAddr, sizeof(pawnAddr), nullptr) || !pawnAddr) {
+            return false;
+        }
+
+        return true;
+    }
+
     bool EntityMgr::FetchEntities(Entity* entityList, int maxEntities) {
         if (!hProcess || !controllerBase || maxEntities <= 0 || !entityList) {
             return false;
         }
 
         for (int i = 0; i < maxEntities; i++) {
-
-            entityList[i].ID = i;
+            entityList[i].index = i;
 
             uint64_t controllerAddr = 0;
-            if (!ReadProcessMemory(hProcess, (LPVOID)(controllerBase + i * 0x78),
-                &controllerAddr, sizeof(controllerAddr), nullptr) || !controllerAddr) {
+            uint64_t pawnAddr = 0;
+            if (!GetBaseEntity(i, controllerAddr, pawnAddr)) { // 不传 controllerBaseOverride，使用默认值
                 entityList[i].isValid = false;
                 continue;
             }
+
             entityList[i].controllerAddr = controllerAddr;
+            entityList[i].pawnAddr = pawnAddr;
 
-            uint64_t playerPawnHandle = 0;
-            if (!ReadProcessMemory(hProcess, (LPVOID)(controllerAddr + cs2_dumper::schemas::client_dll::CCSPlayerController::m_hPlayerPawn),
-                &playerPawnHandle, sizeof(playerPawnHandle), nullptr) || !playerPawnHandle) {
-                entityList[i].isValid = false;
-                continue;
-            }
-
-            uint64_t entry2 = 0;
-            if (!ReadProcessMemory(hProcess, (LPVOID)(entityListBase + 0x8 * ((playerPawnHandle & 0x7FFF) >> 9) + 0x10),
-                &entry2, sizeof(entry2), nullptr) || !entry2) {
-                entityList[i].isValid = false;
-                continue;
-            }
-
-            uint64_t entityInstanceAddr = entry2 + 0x78 * (playerPawnHandle & 0x1FF);
-            if (!ReadProcessMemory(hProcess, (LPVOID)entityInstanceAddr,
-                &entityList[i].pawnAddr, sizeof(entityList[i].pawnAddr), nullptr) || !entityList[i].pawnAddr) {
-                entityList[i].isValid = false;
-                continue;
-            }
-
-            if (!ReadEntityData(controllerAddr, entityList[i].pawnAddr, entityList[i])) {
+            if (!ReadEntityData(controllerAddr, pawnAddr, entityList[i])) {
                 entityList[i].isValid = false;
                 continue;
             }
@@ -86,12 +102,12 @@ namespace CS2Assist {
             entityList[i].isValid = true;
         }
         return true;
-    };
+    }
     //读取实体数据
     bool EntityMgr::ReadEntityData(uint64_t controllerAddr, uint64_t pawnAddr, Entity& entity) {
 
-        // 读取姓名 阵营ID 血量 相机位置 视角角度 相机速度 武器名称 被瞄标识
-
+        // 读取姓名 steamID 是否本地玩家 阵营ID 血量 相机位置 视角角度 相机速度 武器名称 被瞄标识
+        
         uint64_t nameAddr = 0;  char nameBuffer[256] = { 0 };
         if (ReadProcessMemory(hProcess, (LPVOID)(controllerAddr + cs2_dumper::schemas::client_dll::CCSPlayerController::m_sSanitizedPlayerName),
             &nameAddr, sizeof(nameAddr), nullptr) && nameAddr) {
@@ -99,6 +115,16 @@ namespace CS2Assist {
                 entity.name = std::string(nameBuffer);
             }
         }
+
+        if (!ReadProcessMemory(hProcess, (LPVOID)(controllerAddr + cs2_dumper::schemas::client_dll::CBasePlayerController::m_steamID),
+            &entity.steamID, sizeof(entity.steamID), nullptr)) {
+            entity.steamID = 0;
+        };
+
+        if (!ReadProcessMemory(hProcess, (LPVOID)(controllerAddr + cs2_dumper::schemas::client_dll::CBasePlayerController::m_bIsLocalPlayerController),
+            &entity.IsLocalPlayerController, sizeof(entity.IsLocalPlayerController), nullptr)) {
+            entity.IsLocalPlayerController = false;
+        };
 
         if (!ReadProcessMemory(hProcess, (LPVOID)(pawnAddr + cs2_dumper::schemas::client_dll::C_BaseEntity::m_iTeamNum),
             &entity.teamId, sizeof(entity.teamId), nullptr)) {

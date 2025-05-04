@@ -26,9 +26,14 @@ namespace CS2Assist {
     };
 
     struct Entity {
-        uint16_t ID;
+
+        uint16_t index;
+
         uint64_t controllerAddr;
         uint64_t pawnAddr;
+
+        UINT64 steamID;
+        bool IsLocalPlayerController;
         std::string name;
         Vec3 lastPosition;
         Vec3 velocity;
@@ -39,14 +44,19 @@ namespace CS2Assist {
         int health;
         std::string weaponName;
         int teamId;
-        bool isValid;
         bool isSpotted;
         uint32_t SpottedByMask;
         uint32_t IDEntIndex;
+
+        bool isValid;
+        bool isTarget;
+
         Entity() :
+            steamID(0),
+            IsLocalPlayerController(false),
             isSpotted(false),
             IDEntIndex(0),
-            ID(0),
+            index(0),
             name("Unknown"),
             lastPosition(),
             velocity(),
@@ -60,24 +70,27 @@ namespace CS2Assist {
             controllerAddr(0),
             pawnAddr(0),
             SpottedByMask(0),
-            isValid(false) {
+            isValid(false),
+            isTarget(false) {
         };
     };
-
+    
     class EntityMgr {
     public:
         EntityMgr(HANDLE processHandle, HMODULE clientModule);
         bool GetLocalPlayer(Entity& localEntity);
         bool FetchEntities(Entity* entityList, int maxEntities = 64);
         bool StartEntityUpdateThread(Entity* entityList, Entity& localEntity); // 修正参数类型
+        bool ReadEntityData(uint64_t controllerAddr, uint64_t pawnAddr, Entity& entity);
     private:
         HANDLE hProcess;
         uint64_t ClientModuleAddress;
         uint64_t entityListBase;
         uint64_t controllerBase;
-
-        bool ReadEntityData(uint64_t controllerAddr, uint64_t pawnAddr, Entity& entity);
+        
+        bool GetBaseEntity(int index, uint64_t& controllerAddr, uint64_t& pawnAddr, uint64_t controllerBaseOverride = 0);
     };
+    
 } // namespace CS2Assist
 
 #endif // CS2ASSIST_ENTITY_MGR_H

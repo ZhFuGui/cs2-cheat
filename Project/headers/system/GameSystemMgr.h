@@ -33,38 +33,53 @@ namespace CS2Assist {
         int ammo;         // 弹药数量
     };
 
+    struct GameSystem {
+        GameState gameState;
+        float sensitivity;
+        std::string mapStateInfo;
+        GameSystem() :
+            gameState(GameState::Unknown),
+            sensitivity(0.0f),
+            mapStateInfo("unknown") {
+        };
+
+    };
+
     class GameSystemMgr {
     public:
         GameSystemMgr(HANDLE processHandle, HMODULE clientModule);
         ~GameSystemMgr();
 
+        // 更新游戏系统数据
+        void Update(GameSystem& gameSystem);
+
+    private:
+        HANDLE hProcess;
+        uint64_t ClientModuleAddress;
+
+        GameSystem gameSystem;
+
         // 获取游戏灵敏度
-        float GetSensitivity() const;
+        bool GetSensitivity(GameSystem& gameSystem) const;
+        
         // 获取屏幕宽度
         int GetScreenWidth() const;
+        
         // 获取屏幕高度
         int GetScreenHeight() const;
+        
         // 获取游戏状态
-        GameState GetGameState() const;
+        bool GetGameState(GameSystem& gameSystem) const;
         // 获取对局比分（队伍1得分, 队伍2得分）
         std::pair<int, int> GetScore() const;
         // 获取游戏地图名
-        std::string GetMapName() const;
-
+        bool GetMapName(GameSystem& gameSystem) const;
         // 获取烟雾弹列表
         std::vector<SmokeEntity> GetSmokeEntities() const;
         // 获取闪光弹列表
         std::vector<FlashEntity> GetFlashEntities() const;
         // 获取枪支列表
         std::vector<WeaponEntity> GetWeaponEntities() const;
-
-        // 更新游戏系统数据
-        void Update();
-
-    private:
-        HANDLE hProcess;            // 进程句柄
-        uint64_t ClientModuleAddress; // 客户端模块基址
-        // 可根据需要添加其他成员变量
     };
 
 } // namespace CS2Assist

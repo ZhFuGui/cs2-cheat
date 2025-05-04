@@ -39,17 +39,23 @@ CS2Assist /
 #include <iostream>
 #include "..\headers\AssistMain.h"
 #include "..\output\offsets.hpp"
+#include "..\output\buttons.hpp"
 #include "..\output\client_dll.hpp"
+#include "..\headers\system\GameSystemMgr.h"
 #include "..\headers\core\ProcessUtil.h"
 #include "..\headers\entity\EntityMgr.h"
 #include "..\headers\utils\MiscUtil.h"
 #include "..\headers\features\AimAssist.h"
+#include "..\headers\features\GlowEsp.h"
+#include "..\headers\features\AntiUtils.h"
 #include "..\headers\AssistMain.h"
+
 #include <thread>
 
 
-
 int main() {
+
+    SetConsoleOutputCP(CP_UTF8);
 
     DWORD Pid = CS2Assist::ProcessUtil::GetProcessPid(L"cs2.exe");
 
@@ -57,50 +63,47 @@ int main() {
 
     HMODULE ClientModule = CS2Assist::ProcessUtil::GetModuleHandle(hProcess, "client.dll");
 
-    CS2Assist::EntityMgr entityMgr(hProcess, ClientModule);
 
-    CS2Assist::Entity entityList[64];
-
-    CS2Assist::Entity local;
-
-    CS2Assist::AimAssist aimAssist(hProcess, ClientModule, entityList, local);
-
-	SetConsoleOutputCP(CP_UTF8);
-
-	entityMgr.StartEntityUpdateThread(entityList, local);
-
-	//aimAssist.SilentAim();
-    aimAssist.testThread();
-
-    CS2Assist::Sleep_Ms(2000);
     if (!ClientModule) {
         std::cout << "无法找到 client.dll!" << std::endl;
         CloseHandle(hProcess);
         return 1;
-    }
+    };
 
-    uint64_t resultAddr = 0;
+    //实例化游戏系统管理对象
+    CS2Assist::GameSystem gameSystem;
+    CS2Assist::GameSystemMgr gameSystemMgr(hProcess, ClientModule);
 
-    CS2Assist::ProcessUtil::ScanSignature(hProcess, ClientModule, CS2Assist::Consts::SignCode::BlueXray, resultAddr);
-    std::cout << "找到特征码地址: 0x" << std::hex << resultAddr << std::endl;
+    //实例化实体管理对象
+    CS2Assist::EntityMgr entityMgr(hProcess, ClientModule);
+    CS2Assist::Entity entityList[64];CS2Assist::Entity local;
+    entityMgr.StartEntityUpdateThread(entityList, local);
+
+    //实例化自瞄对象
+    CS2Assist::AimAssist aimAssist(hProcess, ClientModule, gameSystem, entityMgr, entityList, local);
+    CS2Assist::TargetScope scope{ CS2Assist::TargetScope::TargetType::EnemiesOnly };
+    aimAssist.StartAim(CS2Assist::TargetMode::VisibleEntity, scope, CS2Assist::AimControl::AimType::Memory);
+    
+    //std::cout << std::hex << local.pawnAddr << std::endl;
+    
+    //实例化防烟防闪对象
+    CS2Assist::AntiUtils* g_AntiUtils = new CS2Assist::AntiUtils(hProcess, ClientModule, local);
+
+    //实例化发光对象
+    CS2Assist::GlowEsp* g_GlowEsp = new CS2Assist::GlowEsp();
+
+
     while (1) {
-        for (int i = 0; i < 64; ++i) {
-            if (entityList[i].isValid) {
-                std::cout << entityList[i].name << std::endl;
-                std::cout << entityList[i].pawnAddr << std::endl;
-                std::cout << entityList[i].isSpotted << std::endl;
-                std::cout << entityList[i].SpottedByMask << std::endl;
-                if ((local.SpottedByMask & (DWORD64(1) << (i-1)))) {
-                    std::cout << i << "can look me" << entityList[i].name << std::endl;
-                }
-            }
-        }
-        CS2Assist::Sleep_Ms(200);
+        gameSystemMgr.Update(gameSystem);
+        std::cout << gameSystem.sensitivity << std::endl;
+        
+            std::cout << std::dec << entityList[2].steamID << std::endl;
+            std::cout << std::hex <<local.controllerAddr << std::endl;
+        Sleep(2000);
         system("cls");
     }
 
-
 	system("pause");
-
+   
 	return 0;
 }
