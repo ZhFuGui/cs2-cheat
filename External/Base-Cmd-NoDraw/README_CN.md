@@ -2,10 +2,7 @@
 
 ## 语言选择
 
-选择您的首选语言：
-
 - [Set language to English](README.md)
-- [中文](README_CN.md)
 
 ## 简介
 

@@ -2,9 +2,6 @@
 
 ## Language Selection
 
-Select your preferred language:
-
-- [English](README.md)
 - [切换至中文](README_CN.md)
 
 ## Introduction
