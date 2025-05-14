@@ -1,37 +1,41 @@
 # CS2 Cheat Program Tutorial
 
-**Language**: [English](#) | [简体中文](README_CN.md)
+**Language**: [English](#) | [中文(简体)](README_CN.md)
 
 ## Overview
-This project is a hands-on tutorial for programming beginners to learn C/C++ by building a cheat program for Counter-Strike 2 (CS2). Follow step-by-step guides and build upon them to grasp core programming concepts and explore game modification techniques in an engaging way.
+This tutorial helps beginners learn C/C++ by building cheat programs for Counter-Strike 2 (CS2). It offers multiple versions (internal and external) with source code and precompiled executables, guiding users to master programming concepts through game modification.
 
-**⚠️ Note**: This project is strictly for educational purposes. Using the program in online games may violate terms of service and lead to bans. Always respect ethical and legal boundaries.
+**Note**: For educational use only. Using these in online CS2 games may violate terms of service and lead to bans.
 
-## Objectives
-- **Learn C/C++ Basics**: Master variables, functions, pointers, and memory management.
-- **Understand Game Hacking**: Explore reverse engineering and memory manipulation safely.
-- **Solve Problems**: Tackle real-world coding challenges through practical development.
-- **Get Creative**: Experiment and enhance the program with your own ideas.
+## Repository Structure
+- **`docs/`**: Guides for setup (`setup.md`), contributions (`contributing.md`).
+- **`src/`**: Source code and executables for cheat versions.
+  - Example: `src/external/demo-xray/` includes:
+    - `bin/xray.exe`: Precompiled executable.
+    - `code/`: Source files (`.hpp`, `.cpp`).
+    - `demo-xray.md`: Project guide.
+  - Other projects follow the same structure.
+- **`tools/`**: `cs2-dumper.exe` for extracting CS2 memory offsets.
+- **Root**: `.gitignore`, `LICENSE`, `README.md`, `README_CN.md`.
 
-## Target Audience
-- Beginners new to C/C++ programming.
-- Game development or modding enthusiasts.
-- Learners who enjoy project-based learning.
+## Usage
+1. **Clone Repository**:
+   ```bash
+   git clone <repository-url>
+   ```
+2. **Run Offset Dumper**:
+   - Launch `tools/cs2-dumper.exe` with CS2 running (local environment).
+3. **Run Cheat Program**:
+   - Navigate to a project’s `bin/` (e.g., `src/external/demo-xray/bin/`).
+   - Run the executable (e.g., `xray.exe`).
+   - Check the project’s `.md` (e.g., `demo-xray.md`).
+4. **Explore Source** (Optional):
+   - Modify or compile `code/` files using Visual Studio.
+   - See `docs/setup.md`.
 
-## Prerequisites
-- Basic programming knowledge (e.g., variables, loops).
-- A Windows PC with a C/C++ environment (e.g., Visual Studio).
-- Optional: Familiarity with Counter-Strike 2 (CS2).
-- Willingness to learn and debug code.
+## Contributing
+See `docs/contributing.md` for how to share code or docs.
 
-## Ethical Guidelines
-Please use this knowledge responsibly:
-- Do not use the program in online matches or public servers.
-- Respect the CS2 terms of service and gaming community.
-- Focus on learning programming and game mechanics.
+---
 
-## Getting Started
-1. Clone this repository: `git clone <repository-url>`
-2. Set up your C/C++ development environment (e.g., Visual Studio).
-3. Follow the tutorials in the `docs/` folder or the main guides in this repository.
-4. Experiment and build your own features!
+Report issues on GitHub.
