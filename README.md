@@ -1,6 +1,6 @@
 # CS2 Cheat Program Tutorial
 
-**Language**: [English](#) | [中文 (README_CN.md)](README_CN.md)
+**Language**: [English](#) | [简体中文](README_CN.md)
 
 ## Overview
 This project is a hands-on tutorial for programming beginners to learn C/C++ by building a cheat program for Counter-Strike 2 (CS2). Follow step-by-step guides and build upon them to grasp core programming concepts and explore game modification techniques in an engaging way.
