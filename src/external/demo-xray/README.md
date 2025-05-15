@@ -56,18 +56,65 @@ If the signature has expired or is invalid, you can update it using the steps be
 
    ![Show Disassembler](readme-asset/CE2.png)
 
-### 4. Generate a Call Graph and Locate the Signature
-1. In the disassembler window, right-click and select “Generate Graph” to visualize the instruction call hierarchy:
+### 4. Generate Call Graph and Extract Feature Code
+
+1. In the disassembly window, right-click and select "Generate Graph" to visualize the call relationships of the instructions:
 
    ![Generate Graph](readme-asset/CE3.png)
-2. Once the graph is generated, review the call hierarchy:
+
+2. Examine the generated call graph to analyze the logic of the `spec_show_xray`-related function (referred to as `init_xray` below):
 
    ![Call Graph](readme-asset/tb1.png)
-3. Scroll to the bottom of the graph to locate the key instruction region:
 
-   ![Key Instruction](readme-asset/tb2.png)
-4. Left-click the instruction to jump to the disassembler window. The signature is in the red highlighted area:
+3. **Objective**: Enable the wallhack effect for all players. The `init_xray` function determines whether an entity glows, based on factors such as:
 
-   ![Signature Location](readme-asset/CE4.png)
+   - The value of `spec_show_xray` (1 or 0)
+   - Whether the local player is dead
+   - Whether the entity is a teammate or a corpse
 
-By following these steps, you can successfully locate the signature for the `spec_show_xray` feature in CS2.
+4. **Code Logic Assumptions**:
+
+   - The function is designed with low coupling, clear logic, and early returns where possible.
+   - It iterates through all entities, evaluating each one for glow eligibility.
+   - The logical flow is as follows:
+
+   ```mermaid
+   graph TD;
+       E[Iterate through each entity] --> A[Enter init_xray function]
+       A --> B{Evaluate glow conditions}
+       B -->|Met| C[Set glow parameters （color， brightness，etc.）<br>Set glow flag to true or keep true]
+       B -->|Not met| D[Set glow flag to false or keep false]
+       C --> F[Cleanup processing]
+       D --> F
+       F --> G[Exit init_xray, invoke glow SDK]
+   ```
+
+5. **Feature Code Identification Process**:
+
+   - **Observation**: Most entities (e.g., enemies) fail to meet glow conditions, leading to the "set glow flag to false" branch. Entities meeting the conditions (e.g., teammates) are fewer, leading to the "set glow flag to true" branch.
+   - **Hypothesis**: In the call graph, the "not met" branch has multiple code paths, while the "met" branch has fewer. The goal is to modify instructions to redirect the "not met" branch to the "met" branch, enabling glow for all entities.
+   - **Verification**: Locate the critical structure controlling the glow flag at the bottom of the call graph:
+
+     ![Structure Region](readme-asset/tb3.png)
+
+   - **Debugging**: Set breakpoints at key instructions to analyze the "not met" branch behavior. Identify the instruction controlling the glow flag:
+
+     ```assembly
+     xor al, al
+     ```
+
+     Replacing it with `nop` results in all entities glowing, confirming that the glow flag defaults to true and is set to false when conditions are not met.
+
+     ![Key Instruction](readme-asset/xrayinG.png)
+
+   - **Locating Feature Code**: Navigate to the key instruction region in the disassembly window. The feature code is in the red-boxed area:
+
+     ![Feature Code Location](readme-asset/CE4.png)
+
+6. **Summary**:
+
+   - Using the call graph and breakpoint debugging, identify the core instruction in `init_xray` controlling the glow effect.
+   - Replace `xor al, al` with `nop` to enable glow for all entities.
+   - Extract the feature code from the disassembly window to update the wallhack functionality in `xray.exe`.
+
+By following these steps, you can successfully locate and update the feature code for the `spec_show_xray` function in CS2.
