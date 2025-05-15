@@ -20,16 +20,20 @@ If the signature has expired or is invalid, you can update it using the steps be
 ### 1. Enable the `spec_show_xray` Feature
 1. Start CS2 and enter a game.
 2. Open the console (default key: `~`) and enter the following command to enable the wallhack effect:
+
    ```bash
    spec_show_xray 1
    ```
    Result:
+
    ![spec_show_xray 1](readme-asset/console1.png)
 3. To disable the effect, enter:
+
    ```bash
    spec_show_xray 0
    ```
    Result:
+
    ![spec_show_xray 0](readme-asset/console0.png)
 
 ### 2. Locate the Target Address with Cheat Engine
@@ -38,23 +42,30 @@ If the signature has expired or is invalid, you can update it using the steps be
 3. Enter the value `1` (corresponding to `spec_show_xray 1`) and click “First Scan.”
 4. Return to the game, enter `spec_show_xray 0`, then search for the value `0` in Cheat Engine.
 5. Repeat steps 3 and 4, alternating between `spec_show_xray 1` and `0`, and searching for `1` and `0` in Cheat Engine until a single target address is isolated:
+
    ![Cheat Engine Search Result](readme-asset/CEres.png)
 
 ### 3. Analyze Instructions Accessing the Target Address
 1. In Cheat Engine’s address list, select the target address, right-click, and choose “Find out what accesses this address”:
+
    ![Find Accesses](readme-asset/CE1.png)
 2. Switch back to the game and trigger the `spec_show_xray` command to capture instructions accessing the address.
 3. In Cheat Engine’s debug window, select a relevant instruction and click “Show Disassembler”:
+
    ![Show Disassembler](readme-asset/CE2.png)
 
 ### 4. Generate a Call Graph and Locate the Signature
 1. In the disassembler window, right-click and select “Generate Graph” to visualize the instruction call hierarchy:
+
    ![Generate Graph](readme-asset/CE3.png)
 2. Once the graph is generated, review the call hierarchy:
+
    ![Call Graph](readme-asset/tb1.png)
 3. Scroll to the bottom of the graph to locate the key instruction region:
+
    ![Key Instruction](readme-asset/tb2.png)
 4. Left-click the instruction to jump to the disassembler window. The signature is in the red highlighted area:
+
    ![Signature Location](readme-asset/CE4.png)
 
 By following these steps, you can successfully locate the signature for the `spec_show_xray` feature in CS2.
