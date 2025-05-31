@@ -2,6 +2,11 @@
 
 **Language**: [English](#) | [中文(简体)](README_CN.md)
 
+## Currently Updated Modules
+- `demo-xray` serves as the foundation for wallhack functionality, allowing easy mastery even for those new to programming (no prior "Hello World" experience required).
+- `external_Base-console-NoDraw` initiates the development of a fully functional cheat with a console interface (no drawing).
+- `external_traceline` introduces ray-casting detection, marking the entry into "premium-tier" assistive technology!
+- Upcoming updates pending.
 ## Overview
 This tutorial helps beginners learn C/C++ by building cheat programs for Counter-Strike 2 (CS2). It offers multiple versions (internal and external) with source code and precompiled executables, guiding users to master programming concepts through game modification.
 
