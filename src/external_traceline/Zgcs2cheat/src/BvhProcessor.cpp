@@ -81,201 +81,194 @@ bool SaveBVH(const BVHNode* node, std::ofstream& out) {
 	return true;
 }
 
-WINCSAPI BOOL __stdcall GenerateBvhFile(const std::string& inputPath, const std::string& outputPath)
+WINCSAPI
+BOOL
+WINAPI
+GenerateBvhFile(
+    _In_ const std::string& inputPath,
+    _In_ const std::string& outputPath
+)
 {
-	std::vector<TriangleCombined> combined;
+    std::vector<TriangleCombined> combinedTriangles;
 
-    std::string inputFileContextBuffer;
-    if (!readFile(inputPath, inputFileContextBuffer)) {
-        return  FALSE;
+    // 读取输入文件内容
+    std::string fileContent;
+    if (!readFile(inputPath, fileContent)) {
+        return FALSE;
     }
 
-    std::string meshesBlockBuffer;
-    if (!findMeshesBlock(inputFileContextBuffer, meshesBlockBuffer)) {
-        return  FALSE;
+    // 提取网格数据块
+    std::string meshesBlock;
+    if (!findMeshesBlock(fileContent, meshesBlock)) {
+        return FALSE;
     }
 
-    std::vector<std::string> meshStructsBuffer;
-    if (!extractStructs(meshesBlockBuffer, meshStructsBuffer)) {
-        return  FALSE;
+    // 解析网格结构
+    std::vector<std::string> meshStructs;
+    if (!extractStructs(meshesBlock, meshStructs)) {
+        return FALSE;
     }
 
-    std::vector<int> defaultCollisionIndicesBuffer;
-    if (!parseCollisionAttributes(inputFileContextBuffer, defaultCollisionIndicesBuffer)) {
-        return  FALSE;
+    // 获取默认碰撞索引
+    std::vector<int> defaultCollisionIndices;
+    if (!parseCollisionAttributes(fileContent, defaultCollisionIndices)) {
+        return FALSE;
     }
 
-	int blockIndex = 1;
+    // 处理每个网格结构
+    for (const auto& meshStruct : meshStructs) {
+        // 检查碰撞属性
+        int collisionAttribute = 0;
+        if (!findParam(meshStruct, "m_nCollisionAttributeIndex", collisionAttribute)) {
+            continue;
+        }
 
-	for (const auto& meshStruct : meshStructsBuffer) {
+        // 过滤不匹配的碰撞属性
+        if (std::find(defaultCollisionIndices.begin(), defaultCollisionIndices.end(), collisionAttribute) == defaultCollisionIndices.end()) {
+            continue;
+        }
 
-		int collisionAttribute{ 0 };
+        // 获取表面属性
+        int surfaceProperty = 0;
+        if (!findParam(meshStruct, "m_nSurfacePropertyIndex", surfaceProperty)) {
+            continue;
+        }
 
-		if (!findParam(meshStruct, "m_nCollisionAttributeIndex", collisionAttribute)) {
-			continue;
-		};
+        // 提取内部网格数据
+        std::string innerMesh;
+        if (!extractInnerMesh(meshStruct, innerMesh) || innerMesh.empty()) {
+            continue;
+        }
 
+        // 提取顶点和三角形数据
+        std::string verticesHex;
+        if (!extractHexBlob(innerMesh, "m_Vertices", verticesHex) || verticesHex.empty()) {
+            continue;
+        }
 
-		if (
-			std::find(defaultCollisionIndicesBuffer.begin(), defaultCollisionIndicesBuffer.end(), collisionAttribute)
-			==
-			defaultCollisionIndicesBuffer.end()
-			)
-		{
-			continue;
-		};
+        std::string trianglesHex;
+        if (!extractHexBlob(innerMesh, "m_Triangles", trianglesHex) || trianglesHex.empty()) {
+            continue;
+        }
 
-		int surfaceProperty{ 0 };
-		if (!findParam(meshStruct, "m_nSurfacePropertyIndex", surfaceProperty)) {
-			continue;
-		};
+        // 解析顶点和三角形
+        std::vector<Vector3> vertices;
+        std::vector<Triangle> triangles;
+        if (!parseVertices(verticesHex, vertices) || !parseTriangles(trianglesHex, triangles)) {
+            return FALSE;
+        }
 
-		std::string innerMesh;
-		if (!extractInnerMesh(meshStruct, innerMesh)|| innerMesh.empty()) {
-			continue;
-		};
+        // 解析材质
+        std::string materialsContent;
+        std::vector<int> materials;
+        bool hasMaterials = extractArrayContent(innerMesh, "m_Materials", materialsContent);
 
-		std::string verticesHex;
-		if (!extractHexBlob(innerMesh, "m_Vertices", verticesHex) || verticesHex.empty()) {
-			continue;
-		};
-		std::string trianglesHex;
-		if (!extractHexBlob(innerMesh, "m_Triangles", trianglesHex) || trianglesHex.empty()) {
-			continue;
-		};
+        if (hasMaterials && !materialsContent.empty() && !parseMaterials(materialsContent, materials)) {
+            return FALSE;
+        }
 
-		std::vector<Vector3> vertices;
-		std::vector<Triangle> triangles;
+        // 构建组合三角形
+        for (size_t i = 0; i < triangles.size(); ++i) {
+            TriangleCombined tc;
+            const Triangle& t = triangles[i];
 
-		if (!parseVertices(verticesHex, vertices)|| !parseTriangles(trianglesHex, triangles)) {
-			return  FALSE;
-		};
+            // 验证顶点索引有效性
+            if (t.a >= vertices.size() || t.b >= vertices.size() || t.c >= vertices.size()) {
+                continue;
+            }
 
-		std::string materialsContent;
-		std::vector<int> materials;
+            tc.v0 = vertices[t.a];
+            tc.v1 = vertices[t.b];
+            tc.v2 = vertices[t.c];
 
-		bool hasMaterials=extractArrayContent(innerMesh, "m_Materials", materialsContent);
+            // 设置材质索引
+            tc.materialIndex = hasMaterials ?
+                (i < materials.size() ? materials[i] : 15) :
+                surfaceProperty;
 
-		if (
-			(hasMaterials && !materialsContent.empty())
-			&& 
-			!parseMaterials(materialsContent, materials))
-		{
-			return  FALSE;
-		}
+            combinedTriangles.push_back(tc);
+        }
+    }
 
-		blockIndex++;
+    // 处理包围盒数据
+    std::string hullsBlock;
+    if (!findHullsBlock(fileContent, hullsBlock) || hullsBlock.empty()) {
+        return FALSE;
+    }
 
-		for (size_t i = 0; i < triangles.size(); ++i) {
-			TriangleCombined tc;
-			const Triangle& t = triangles[i];
-			if (t.a >= vertices.size() || t.b >= vertices.size() || t.c >= vertices.size()) {
-				continue;
-			}
-			tc.v0 = vertices[t.a];
-			tc.v1 = vertices[t.b];
-			tc.v2 = vertices[t.c];
-			if (hasMaterials)
-				tc.materialIndex = (i < materials.size()) ? materials[i] : 15;
-			else
-				tc.materialIndex = surfaceProperty;
-			combined.push_back(tc);
-		}
-	}
+    std::vector<std::string> hullStructs;
+    if (!extractStructs(hullsBlock, hullStructs) || hullStructs.empty()) {
+        return FALSE;
+    }
 
-	std::string hullsBlock;
-	
-	if (!findHullsBlock(inputFileContextBuffer, hullsBlock) || hullsBlock.empty()) {
-		return  FALSE;
-	}
-	
-	std::vector<std::string> hullStructs;
-	if (!extractStructs(hullsBlock, hullStructs) || hullStructs.empty()) {
-		return  FALSE;
-	}
+    int overallMinSurface = INT_MAX;
+    int overallMaxSurface = INT_MIN;
+    int totalHullTriangles = 0;
 
-	int overallMinSurface = 1000000;
-	int overallMaxSurface = -1000000;
-	int totalHullTriangles = 0;
+    // 处理每个包围盒结构
+    for (const auto& hullStruct : hullStructs) {
+        // 获取表面属性索引
+        int surfacePropertyIndex;
+        if (!findParam(hullStruct, "m_nSurfacePropertyIndex", surfacePropertyIndex)) {
+            return FALSE;
+        }
 
-	int hullIndex = 1;
+        // 更新表面属性范围
+        overallMinSurface = std::min(overallMinSurface, surfacePropertyIndex);
+        overallMaxSurface = std::max(overallMaxSurface, surfacePropertyIndex);
 
-	for (const auto& hullStruct : hullStructs) {
+        // 提取内部包围盒数据
+        std::string innerHull;
+        if (!extractInnerBlock(hullStruct, "m_Hull", innerHull) || innerHull.empty()) {
+            continue;
+        }
 
-		int surfacePropertyIndex;
-		if (!findParam(hullStruct, "m_nSurfacePropertyIndex", surfacePropertyIndex)) {
-			return FALSE;
-		};
+        // 提取边界框数据
+        std::string boundsBlock;
+        if (!extractInnerBlock(innerHull, "m_Bounds", boundsBlock) || boundsBlock.empty()) {
+            continue;
+        }
 
-		if (surfacePropertyIndex < overallMinSurface)
-			overallMinSurface = surfacePropertyIndex;
-		if (surfacePropertyIndex > overallMaxSurface)
-			overallMaxSurface = surfacePropertyIndex;
+        // 提取最小和最大边界值
+        std::string minBoundsStr;
+        std::string maxBoundsStr;
+        if (!extractArrayContent(boundsBlock, "m_vMinBounds", minBoundsStr) || minBoundsStr.empty() ||
+            !extractArrayContent(boundsBlock, "m_vMaxBounds", maxBoundsStr) || maxBoundsStr.empty()) {
+            continue;
+        }
 
-		std::string innerHull;
-		if (!extractInnerBlock(hullStruct, "m_Hull", innerHull)|| innerHull.empty()) {
-			hullIndex++;
-			continue;
-		}
+        // 解析边界值数组
+        std::vector<float> minValues;
+        std::vector<float> maxValues;
+        if (!parseFloatArray(minBoundsStr, minValues) || minValues.size() < 3 ||
+            !parseFloatArray(maxBoundsStr, maxValues) || maxValues.size() < 3) {
+            continue;
+        }
 
-		std::string boundsBlock;
-		if (!extractInnerBlock(innerHull, "m_Bounds", boundsBlock)||boundsBlock.empty()) {
-			hullIndex++;
-			continue;
-		}
+        // 构建边界框向量
+        Vector3 vmin = { minValues[0], minValues[1], minValues[2] };
+        Vector3 vmax = { maxValues[0], maxValues[1], maxValues[2] };
 
-		std::string minBoundsStr;
-		std::string maxBoundsStr;
-		if (
-			(!extractArrayContent(boundsBlock, "m_vMinBounds", minBoundsStr) || minBoundsStr.empty())
-			||
-			(!extractArrayContent(boundsBlock, "m_vMaxBounds", maxBoundsStr) || maxBoundsStr.empty())
-			)
-		{
-			hullIndex++;
-			continue;
-		}
+        // 从AABB生成三角形
+        std::vector<TriangleCombined> hullTriangles;
+        generateTrianglesFromAABB(vmin, vmax, surfacePropertyIndex, hullTriangles);
 
-		std::vector<float> minValues; 
-		std::vector<float> maxValues; 
-		if (
-			!parseFloatArray(minBoundsStr, minValues)
-			||
-			minValues.size() < 3 
-			|| 
-			!parseFloatArray(maxBoundsStr, maxValues)
-			||
-			maxValues.size() < 3
-			
-			) 
-		{
-			hullIndex++;
-			continue;
-		}
+        // 添加到组合三角形集合
+        totalHullTriangles += hullTriangles.size();
+        combinedTriangles.insert(combinedTriangles.end(), hullTriangles.begin(), hullTriangles.end());
+    }
 
-		Vector3 vmin = { minValues[0], minValues[1], minValues[2] };
-		Vector3 vmax = { maxValues[0], maxValues[1], maxValues[2] };
-		std::vector<TriangleCombined> hullTriangles;
+    // 构建BVH树并保存到文件
+    std::unique_ptr<BVHNode> bvhRoot = BuildBVH(combinedTriangles);
 
-		generateTrianglesFromAABB(vmin, vmax, surfacePropertyIndex, hullTriangles);
-		totalHullTriangles += hullTriangles.size();
-		combined.insert(combined.end(), hullTriangles.begin(), hullTriangles.end());
+    std::ofstream outfile(outputPath, std::ios::binary);
+    if (outfile.good()) {
+        SaveBVH(bvhRoot.get(), outfile);
+        outfile.close();
+        return TRUE;
+    }
 
-		hullIndex++;
-	}
-
-	std::unique_ptr<BVHNode> bvhRoot = BuildBVH(combined);
-
-	std::ofstream outfile(outputPath, std::ios::binary);
-
-	if (outfile.good()) {
-		SaveBVH(bvhRoot.get(), outfile);
-		outfile.close();
-		return TRUE;
-	}
-
-	return FALSE;
-	
+    return FALSE;
 }
 
 static Vector3 DeserializeVector3(std::ifstream& in) {
@@ -324,8 +317,15 @@ std::unique_ptr<BVHNode> LoadBVH(std::ifstream& in) {
 	return node;
 }
 
-WINCSAPI BOOL __stdcall ParseBvhFile(const std::string& filePath, std::unique_ptr<BVHNode>& outData)
+WINCSAPI
+BOOL
+WINAPI
+ParseBvhFile(
+    _In_ const std::string& filePath,
+    _Out_ std::unique_ptr<BVHNode>& outData
+)
 {
+    outData = nullptr;
 
 	std::ifstream infile(filePath, std::ios::binary);
 	if (!infile.good()) {
@@ -337,6 +337,7 @@ WINCSAPI BOOL __stdcall ParseBvhFile(const std::string& filePath, std::unique_pt
 		return TRUE;
 	}
 	catch (const std::exception& e) {
+        outData = nullptr;
 		return FALSE;
 	}
 }

@@ -88,7 +88,6 @@ bool parseMaterials(const std::string& arrayContent, std::vector<int>& materials
 
     std::istringstream iss(arrayContent);
     int num;
-    char comma;
     bool valid = true;
 
     while (iss >> num) {
@@ -114,7 +113,6 @@ bool parseFloatArray(const std::string& arrayContent, std::vector<float>& values
 
     std::istringstream iss(arrayContent);
     float num;
-    char nextChar;
     bool valid = true;
 
     while (iss >> num) {
