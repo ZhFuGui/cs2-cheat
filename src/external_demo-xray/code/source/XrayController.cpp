@@ -14,12 +14,8 @@ static int g_xrayState = 3; // 0: 关闭, 1: 启用, 3: 未初始化
 
 // 获取 CS2 Xray 偏移地址
 bool XrayController::GetXrayOffset(uint64_t& offset, const char* signature) {
-    DWORD pid = MemoryManager::GetProcessId(L"cs2.exe");
-    if (!pid) {
-        return false;
-    }
 
-    HANDLE process = OpenProcess(PROCESS_ALL_ACCESS, FALSE, pid);
+    HANDLE process = MemoryManager::GetProcessHandle(L"cs2.exe");
     if (!process) {
         return false;
     }

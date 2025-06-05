@@ -15,8 +15,8 @@ enum class ErrorCode {
 class MemoryManager {
 public:
 
-    // 获取进程 PID
-    static DWORD GetProcessId(const std::wstring& processName);
+    // 获取进程句柄
+    static HANDLE GetProcessHandle(const std::wstring& processName);
 
     // 获取模块句柄
     static HMODULE GetModuleHandle(HANDLE process, const std::wstring& moduleName);

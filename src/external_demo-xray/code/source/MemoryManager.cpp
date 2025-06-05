@@ -2,8 +2,8 @@
 #include <TlHelp32.h>
 #include <psapi.h>
 
-// 获取进程 PID
-DWORD MemoryManager::GetProcessId(const std::wstring& processName) {
+// 获取进程句柄
+HANDLE MemoryManager::GetProcessHandle(const std::wstring& processName) {
     HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
     if (snapshot == INVALID_HANDLE_VALUE) {
         return 0;
@@ -13,8 +13,9 @@ DWORD MemoryManager::GetProcessId(const std::wstring& processName) {
     if (Process32FirstW(snapshot, &entry)) {
         do {
             if (_wcsicmp(entry.szExeFile, processName.c_str()) == 0) {
+                HANDLE hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, entry.th32ProcessID);
                 CloseHandle(snapshot);
-                return entry.th32ProcessID;
+                return hProcess;
             }
         } while (Process32NextW(snapshot, &entry));
     }
@@ -47,14 +48,8 @@ HMODULE MemoryManager::GetModuleHandle(HANDLE process, const std::wstring& modul
 // 写入内存
 bool MemoryManager::WriteMemory(const std::wstring& processName, const std::wstring& moduleName,
     uint64_t offset, uint64_t value, DWORD length) {
-    
-    DWORD pid = GetProcessId(processName);
-    if (pid == 0) {
-        SetLastError(static_cast<DWORD>(ErrorCode::ProcessNotFound));
-        return false;
-    }
 
-    HANDLE process = OpenProcess(PROCESS_ALL_ACCESS, FALSE, pid);
+    HANDLE process = GetProcessHandle(processName);
     if (!process) {
         SetLastError(static_cast<DWORD>(ErrorCode::ProcessOpenFailed));
         return false;
