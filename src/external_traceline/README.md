@@ -4,4 +4,4 @@
 
 run:
 
-![spec_show_xray 1](readme-asset/traceline-gif)
+![traceline](readme-asset/traceline.gif)
